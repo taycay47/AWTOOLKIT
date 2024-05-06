@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Code Generator</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <link rel="stylesheet" href="stylesheet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  </head>
+  <body>
+    <div class="container mt-5">
+      <div class="row">
+        <div class="col-md-6">
+          <h3>Generate QR Code</h3>
+          <form id="qrForm" class="container pl-0">
+            <div class="row">
+              <div class="form-group col">
+                <label for="fileName">File Name:</label>
+                <textarea
+                  class="form-control"
+                  id="fileName"
+                  rows="3"
+                  required
+                ></textarea>
+              </div>
+              <div class="form-group col">
+                <label for="url">Destination URL:</label>
+                <textarea
+                  class="form-control"
+                  id="url"
+                  rows="3"
+                  required
+                ></textarea>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary ml-0">Generate</button>
+          </form>
+        </div>
+        <div class="col-md-6">
+          <h3>Generated QR Codes</h3>
+          <div id="qrCodes" class="row"></div>
+          <button id="downloadBtn" class="btn btn-success mt-3">
+            Download All
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        document
+          .getElementById("qrForm")
+          .addEventListener("submit", function (event) {
+            event.preventDefault();
+            var fileNames = document
+              .getElementById("fileName")
+              .value.split(/[\n,\/\t\r]+/);
+            var urls = document
+              .getElementById("url")
+              .value.split(/[\n,\/\t\r]+/);
+
+            if (fileNames.length !== urls.length) {
+              alert("Number of file names and URLs should match");
+              return;
+            }
+
+            for (var i = 0; i < fileNames.length; i++) {
+              var fileName = fileNames[i].trim();
+              var url = urls[i].trim();
+
+              if (fileName && url) {
+                generateQRCode(fileName, url);
+              } else {
+                alert("Please fill in both fields");
+                return;
+              }
+            }
+          });
+
+        function generateQRCode(fileName, url) {
+          var qrContainer = document.getElementById("qrCodes");
+          var qrCodeDiv = document.createElement("div");
+          qrCodeDiv.className = "col-md-4 mb-3";
+          var qrCodeCard = document.createElement("div");
+          qrCodeCard.className = "card";
+          var qrCodeCardBody = document.createElement("div");
+          qrCodeCardBody.className = "card-body";
+          var qrCodeImage = document.createElement("img");
+          qrCodeImage.className = "qr-code-img";
+          var qrCodeTitle = document.createElement("h5");
+          qrCodeTitle.className = "card-title";
+          qrCodeTitle.textContent = fileName;
+          var qrCodeText = document.createElement("p");
+          qrCodeText.className = "card-text";
+          qrCodeText.textContent = url;
+
+          qrCodeCardBody.appendChild(qrCodeImage);
+          qrCodeCardBody.appendChild(qrCodeTitle);
+          qrCodeCardBody.appendChild(qrCodeText);
+          qrCodeCard.appendChild(qrCodeCardBody);
+          qrCodeDiv.appendChild(qrCodeCard);
+          qrContainer.appendChild(qrCodeDiv);
+
+          var qr = qrcode(0, "L");
+          qr.addData(url);
+          qr.make();
+
+          // Create canvas element to render QR code
+          var canvas = document.createElement("canvas");
+          qrCodeImage.src = qr.createDataURL();
+        }
+
+        document
+          .getElementById("downloadBtn")
+          .addEventListener("click", function () {
+            var qrCodeImgs = document.querySelectorAll(".qr-code-img");
+            if (qrCodeImgs.length === 0) {
+              alert("No QR codes generated yet");
+              return;
+            }
+
+            var zip = new JSZip();
+            qrCodeImgs.forEach(function (qrCodeImg, index) {
+              var fileName = document
+                .getElementById("fileName")
+                .value.trim()
+                .split(/[\n,\/\t\r\s]+/)
+                [index].trim();
+              var imgData = qrCodeImg.src.split(",")[1]; // Extract base64 data
+              zip.file(fileName + ".png", imgData, { base64: true });
+            });
+
+            zip.generateAsync({ type: "blob" }).then(function (content) {
+              saveAs(content, "qr_codes.zip");
+            });
+          });
+      });
+    </script>
+  </body>
+</html>
