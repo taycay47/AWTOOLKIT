@@ -9,9 +9,6 @@
       href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
     />
     <link rel="stylesheet" href="stylesheet.css" />
-    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   </head>
   <body>
     <div class="container mt-5">
@@ -43,7 +40,7 @@
           </form>
         </div>
         <div class="col-md-6">
-          <h3>Generated QR Codes</h3>
+          <h3>Generated QR Codes ( <span id="qrCodeCount">0</span> )</h3>
           <div id="qrCodes" class="row"></div>
           <button id="downloadBtn" class="btn btn-success mt-3">
             Download All
@@ -52,6 +49,9 @@
       </div>
     </div>
 
+    <script src="qrcode-svg/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         document
@@ -107,13 +107,74 @@
           qrCodeDiv.appendChild(qrCodeCard);
           qrContainer.appendChild(qrCodeDiv);
 
-          var qr = qrcode(0, "L");
-          qr.addData(url);
-          qr.make();
+          var options = {
+            msg: url,
+            dim: 158,
+            pad: 4,
+            mtx: 7,
+            ecl: "Q",
+            ecb: 0,
+            pal: ["#0d4291", "#fff"],
+            vrb: 1,
+          };
 
-          // Create canvas element to render QR code
-          var canvas = document.createElement("canvas");
-          qrCodeImage.src = qr.createDataURL();
+          var svgNode = QRCode(options);
+          var svgText = new XMLSerializer().serializeToString(svgNode);
+          var svgWithBorder = addBorderToSVG(
+            svgText,
+            options.dim,
+            options.dim,
+            1,
+            "#0d4291"
+          ); // Adjust border size and color here
+          var blob = new Blob([svgWithBorder], { type: "image/svg+xml" });
+          var blobUrl = URL.createObjectURL(blob);
+          qrCodeImage.src = blobUrl;
+          qrCodeImage.dataset.fileName = fileName + ".svg";
+          qrCodeImage.dataset.blobUrl = blobUrl;
+
+          // Update QR code count
+          document.getElementById("qrCodeCount").textContent =
+            document.querySelectorAll(".qr-code-img").length;
+        }
+
+        function addBorderToSVG(
+          svgText,
+          width,
+          height,
+          borderWidth,
+          borderColor
+        ) {
+          // Parse the SVG string
+          var parser = new DOMParser();
+          var svgDoc = parser.parseFromString(svgText, "image/svg+xml");
+          var svgElement = svgDoc.documentElement;
+
+          // Calculate the total width and height including the border
+          var totalWidth = width + 2 * borderWidth;
+          var totalHeight = height + 2 * borderWidth;
+
+          // Create the border rectangle
+          var borderRect = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "rect"
+          );
+          borderRect.setAttribute("x", 0);
+          borderRect.setAttribute("y", 0);
+          borderRect.setAttribute("width", totalWidth);
+          borderRect.setAttribute("height", totalHeight);
+          borderRect.setAttribute("fill", "none");
+          borderRect.setAttribute("stroke", borderColor);
+          borderRect.setAttribute("stroke-width", borderWidth);
+
+          // Insert the border rectangle at the end of the SVG element
+          svgElement.appendChild(borderRect);
+
+          // Serialize the modified SVG element to string
+          var serializer = new XMLSerializer();
+          var svgWithBorder = serializer.serializeToString(svgElement);
+
+          return svgWithBorder;
         }
 
         document
@@ -127,17 +188,20 @@
 
             var zip = new JSZip();
             qrCodeImgs.forEach(function (qrCodeImg, index) {
-              var fileName = document
-                .getElementById("fileName")
-                .value.trim()
-                .split(/[\n,\/\t\r\s]+/)
-                [index].trim();
-              var imgData = qrCodeImg.src.split(",")[1]; // Extract base64 data
-              zip.file(fileName + ".png", imgData, { base64: true });
-            });
-
-            zip.generateAsync({ type: "blob" }).then(function (content) {
-              saveAs(content, "qr_codes.zip");
+              var fileName = qrCodeImg.dataset.fileName;
+              var blobUrl = qrCodeImg.dataset.blobUrl;
+              fetch(blobUrl)
+                .then((res) => res.blob())
+                .then((blob) => {
+                  zip.file(fileName, blob);
+                  if (index === qrCodeImgs.length - 1) {
+                    zip
+                      .generateAsync({ type: "blob" })
+                      .then(function (content) {
+                        saveAs(content, "qr_codes.zip");
+                      });
+                  }
+                });
             });
           });
       });
