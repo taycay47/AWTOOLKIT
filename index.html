@@ -120,13 +120,7 @@
 
           var svgNode = QRCode(options);
           var svgText = new XMLSerializer().serializeToString(svgNode);
-          var svgWithBorder = addBorderToSVG(
-            svgText,
-            options.dim,
-            options.dim,
-            1,
-            "#0d4291"
-          ); // Adjust border size and color here
+          var svgWithBorder = addBorderToSVG(svgText, 33, 33, 1, "#0d4291"); // Adjust border size and color here
           var blob = new Blob([svgWithBorder], { type: "image/svg+xml" });
           var blobUrl = URL.createObjectURL(blob);
           qrCodeImage.src = blobUrl;
@@ -151,8 +145,8 @@
           var svgElement = svgDoc.documentElement;
 
           // Calculate the total width and height including the border
-          var totalWidth = width + 2 * borderWidth;
-          var totalHeight = height + 2 * borderWidth;
+          var totalWidth = width;
+          var totalHeight = height;
 
           // Create the border rectangle
           var borderRect = document.createElementNS(
